@@ -103,7 +103,23 @@
         const DISCORD_WEBHOOK = 'https://discord.com/api/webhooks/1485275103481565196/Qpymf82OnmWFPUhAN8CnvG3ZPduKe3cn3fgJQi5ayP2yjnxUu0xvs-z1LMrnqEzW4x7X';
         const REDIRECT_URI = 'https://alekseylevkin88-tech.github.io/bogorodsk-reports/';
 
-        const supabase = hardships = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+       // Инициализация Supabase
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        async function discordAuth() {
+            try {
+                const { error } = await supabase.auth.signInWithOAuth({
+                    provider: 'discord',
+                    options: { 
+                        redirectTo: REDIRECT_URI 
+                    }
+                });
+                if (error) throw error;
+            } catch (err) {
+                console.error('Ошибка:', err);
+                showStatus('Ошибка входа: ' + err.message, 'error');
+            }
+        }
 
         async function discordAuth() {
             const { error } = await supabase.auth.signInWithOAuth({
