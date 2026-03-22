@@ -6,90 +6,61 @@
     <title>Жалобы Bogorodsk RP</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root{--bg:#020617;--accent:#4ea8ff;--text:#f5f7ff;--glass:'rgba(4,10,24,0.82)';--radius:18px}
+        :root{--bg:#020617;--accent:#4ea8ff;--text:#f5f7ff;--glass:rgba(4,10,24,0.82);--radius:18px}
         *{margin:0;padding:0;box-sizing:border-box}
         body{background:var(--bg);color:var(--text);font-family:system-ui;padding:20px;display:flex;justify-content:center}
         .glass-card{background:var(--glass);border-radius:var(--radius);padding:24px;max-width:600px;width:100%;backdrop-filter:blur(20px);border:1px solid rgba(78,168,255,0.35);box-shadow:0 24px 55px rgba(1,4,12,0.9)}
         .form-group{margin-bottom:16px}
         label{display:block;margin-bottom:8px;font-weight:600}
-        input,textarea,select{padding:12px;border:1px solid rgba(78,168,255,0.4);background:rgba(9,16,35,0.8);color:var(--text);border-radius:8px;width:100%;font-size:14px}
-        button{padding:12px 24px;background:var(--accent);color:#000;border:none;border-radius:8px;cursor:pointer;font-weight:600;transition:0.3s}
+        input,textarea{padding:12px;border:1px solid rgba(78,168,255,0.4);background:rgba(9,16,35,0.8);color:var(--text);border-radius:8px;width:100%;font-size:14px}
+        button{padding:12px 24px;background:var(--accent);color:#000;border:none;border-radius:8px;cursor:pointer;font-weight:600;transition:0.3s;width:100%}
         button:hover{background:#3b82f6;transform:translateY(-2px)}
-        button:disabled{background:#666;cursor:not-allowed}
-        .tab-btn{display:inline-block;padding:8px 16px;margin:0 4px;background:rgba(78,168,255,0.2);border:1px solid rgba(78,168,255,0.4);cursor:pointer;border-radius:20px;color:var(--text)}
+        .tab-btn{padding:8px 16px;margin:5px;background:rgba(78,168,255,0.1);border:1px solid rgba(78,168,255,0.3);cursor:pointer;border-radius:20px;color:var(--text)}
         .tab-btn.active{background:var(--accent);color:#000}
         .tab-content{display:none}
         .tab-content.active{display:block}
         #login-btn{background:var(--accent);padding:12px 24px;display:inline-block;text-decoration:none;color:#000;border-radius:8px;font-weight:bold}
-        #user-info{margin-bottom:20px;text-align:right;font-size:14px;color:var(--accent)}
     </style>
 </head>
 <body>
     <div class="glass-card">
         <h1 style="margin-bottom:24px;text-align:center">Bogorodsk RP - Система жалоб</h1>
         
-        <div id="auth-section">
-            <p style="text-align:center;margin-bottom:20px">Авторизуйтесь через Discord для подачи заявки</p>
-            <div style="text-align:center">
-                <a id="login-btn" href="#" onclick="discordAuth()">🔗 Войти через Discord</a>
-            </div>
+        <div id="auth-section" style="text-align:center">
+            <p style="margin-bottom:20px">Авторизуйтесь через Discord для подачи заявки</p>
+            <a id="login-btn" href="#" onclick="discordAuth(event)">🔗 Войти через Discord</a>
         </div>
 
         <div id="main-section" style="display:none">
-            <div id="user-info"></div>
-            <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap">
-                <button class="tab-btn active" onclick="switchTab('report-player')">Жалоба на игрока</button>
-                <button class="tab-btn" onclick="switchTab('report-admin')">Жалоба на админа</button>
-                <button class="tab-btn" onclick="switchTab('appeal')">Апелляция</button>
+            <div id="user-info" style="margin-bottom:20px;text-align:right;font-size:14px;color:var(--accent)"></div>
+            <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;justify-content:center">
+                <button class="tab-btn active" onclick="switchTab(event, 'report-player')">Жалоба на игрока</button>
+                <button class="tab-btn" onclick="switchTab(event, 'report-admin')">Жалоба на админа</button>
+                <button class="tab-btn" onclick="switchTab(event, 'appeal')">Апелляция</button>
             </div>
 
             <div id="report-player" class="tab-content active">
-                <form id="report-player-form">
-                    <div class="form-group">
-                        <label>Ник нарушителя:</label>
-                        <input type="text" name="target_nick" required>
-                    </div>
-                    <div class="form-group">
-                        <label>ID игрока (если известен):</label>
-                        <input type="text" name="target_id">
-                    </div>
-                    <div class="form-group">
-                        <label>Описание нарушения:</label>
-                        <textarea name="description" rows="5" required></textarea>
-                    </div>
-                    <button type="submit">Отправить жалобу</button>
+                <form onsubmit="sendToDiscord(event, 'Жалоба на игрока')">
+                    <div class="form-group"><label>Ник нарушителя:</label><input type="text" name="Ник нарушителя" required></div>
+                    <div class="form-group"><label>ID игрока:</label><input type="text" name="ID игрока"></div>
+                    <div class="form-group"><label>Описание:</label><textarea name="Описание" rows="5" required></textarea></div>
+                    <button type="submit">Отправить</button>
                 </form>
             </div>
 
             <div id="report-admin" class="tab-content">
-                <form id="report-admin-form">
-                    <div class="form-group">
-                        <label>Ник администратора:</label>
-                        <input type="text" name="target_nick" required>
-                    </div>
-                    <div class="form-group">
-                        <label>ID администратора:</label>
-                        <input type="text" name="target_id">
-                    </div>
-                    <div class="form-group">
-                        <label>Описание проблемы:</label>
-                        <textarea name="description" rows="5" required></textarea>
-                    </div>
-                    <button type="submit">Отправить жалобу</button>
+                <form onsubmit="sendToDiscord(event, 'Жалоба на админа')">
+                    <div class="form-group"><label>Ник администратора:</label><input type="text" name="Ник админа" required></div>
+                    <div class="form-group"><label>Описание проблемы:</label><textarea name="Описание" rows="5" required></textarea></div>
+                    <button type="submit">Отправить</button>
                 </form>
             </div>
 
             <div id="appeal" class="tab-content">
-                <form id="appeal-form">
-                    <div class="form-group">
-                        <label>Ваш ID наказания:</label>
-                        <input type="text" name="punish_id" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Объяснение:</label>
-                        <textarea name="description" rows="5" required></textarea>
-                    </div>
-                    <button type="submit">Отправить апелляцию</button>
+                <form onsubmit="sendToDiscord(event, 'Апелляция')">
+                    <div class="form-group"><label>ID наказания:</label><input type="text" name="ID наказания" required></div>
+                    <div class="form-group"><label>Объяснение:</label><textarea name="Объяснение" rows="5" required></textarea></div>
+                    <button type="submit">Отправить</button>
                 </form>
             </div>
 
@@ -98,39 +69,25 @@
     </div>
 
     <script>
-        const SUPABASE_URL = 'https://eyrtcaksbklvvgzdqzby.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable_vs74AwiHNiTi65GJEAAHyw_SCvJGIbQ';
-        const DISCORD_WEBHOOK = 'https://discord.com/api/webhooks/1485275103481565196/Qpymf82OnmWFPUhAN8CnvG3ZPduKe3cn3fgJQi5ayP2yjnxUu0xvs-z1LMrnqEzW4x7X';
-        const REDIRECT_URI = 'https://alekseylevkin88-tech.github.io/bogorodsk-reports/';
+        const S_URL = 'https://eyrtcaksbklvvgzdqzby.supabase.co';
+        const S_KEY = 'sb_publishable_vs74AwiHNiTi65GJEAAHyw_SCvJGIbQ';
+        const D_WEBHOOK = 'https://discord.com/api/webhooks/1485275103481565196/Qpymf82OnmWFPUhAN8CnvG3ZPduKe3cn3fgJQi5ayP2yjnxUu0xvs-z1LMrnqEzW4x7X';
+        const R_URI = 'https://alekseylevkin88-tech.github.io/bogorodsk-reports/';
 
-       // Инициализация Supabase
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // Исправленная инициализация (имя переменной изменено на clientSupabase)
+        const clientSupabase = supabase.createClient(S_URL, S_KEY);
 
-        async function discordAuth() {
-            try {
-                const { error } = await supabase.auth.signInWithOAuth({
-                    provider: 'discord',
-                    options: { 
-                        redirectTo: REDIRECT_URI 
-                    }
-                });
-                if (error) throw error;
-            } catch (err) {
-                console.error('Ошибка:', err);
-                showStatus('Ошибка входа: ' + err.message, 'error');
-            }
-        }
-
-        async function discordAuth() {
-            const { error } = await supabase.auth.signInWithOAuth({
+        async function discordAuth(e) {
+            e.preventDefault();
+            const { error } = await clientSupabase.auth.signInWithOAuth({
                 provider: 'discord',
-                options: { redirectTo: REDIRECT_URI }
+                options: { redirectTo: R_URI }
             });
-            if (error) showStatus('Ошибка входа: ' + error.message, 'error');
+            if (error) alert('Ошибка OAuth: ' + error.message);
         }
 
         async function checkUser() {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { user } } = await clientSupabase.auth.getUser();
             if (user) {
                 document.getElementById('auth-section').style.display = 'none';
                 document.getElementById('main-section').style.display = 'block';
@@ -140,50 +97,46 @@
 
         window.onload = checkUser;
 
-        function switchTab(tabId) {
+        function switchTab(e, tabId) {
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
-            event.currentTarget.classList.add('active');
+            e.currentTarget.classList.add('active');
         }
 
-        async function sendToDiscord(formId, typeName) {
-            const form = document.getElementById(formId);
+        async function sendToDiscord(e, typeName) {
+            e.preventDefault();
+            const form = e.target;
             const formData = new FormData(form);
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { user } } = await clientSupabase.auth.getUser();
 
             const fields = [];
             for (let [key, value] of formData.entries()) {
-                fields.push({ name: key, value: value || 'Не указано', inline: true });
+                fields.push({ name: key, value: value || '—', inline: true });
             }
 
             const payload = {
                 embeds: [{
-                    title: `Новая заявка: ${typeName}`,
+                    title: typeName,
                     color: 5185791,
                     fields: [
-                        { name: 'Отправитель', value: `<@${user.user_metadata.provider_id}> (${user.user_metadata.full_name})`, inline: false },
+                        { name: 'Отправитель', value: `<@${user.user_metadata.provider_id}>`, inline: false },
                         ...fields
                     ],
-                    timestamp: new Date().toISOString(),
-                    footer: { text: "Bogorodsk RP System" }
+                    timestamp: new Date().toISOString()
                 }]
             };
 
-            try {
-                const response = await fetch(DISCORD_WEBHOOK, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
+            const res = await fetch(D_WEBHOOK, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
 
-                if (response.ok) {
-                    showStatus('Успешно отправлено!', 'success');
-                    form.reset();
-                } else {
-                    throw new Error();
-                }
-            } catch (e) {
+            if (res.ok) {
+                showStatus('Отправлено успешно!', 'success');
+                form.reset();
+            } else {
                 showStatus('Ошибка отправки в Discord', 'error');
             }
         }
@@ -191,15 +144,10 @@
         function showStatus(msg, type) {
             const el = document.getElementById('status');
             el.textContent = msg;
-            el.style.background = type === 'success' ? 'rgba(126, 217, 87, 0.2)' : 'rgba(255, 92, 122, 0.2)';
             el.style.color = type === 'success' ? '#7ed957' : '#ff5c7a';
             el.style.display = 'block';
-            setTimeout(() => el.style.display = 'none', 5000);
+            setTimeout(() => el.style.display = 'none', 4000);
         }
-
-        document.getElementById('report-player-form').onsubmit = (e) => { e.preventDefault(); sendToDiscord('report-player-form', 'Жалоба на игрока'); };
-        document.getElementById('report-admin-form').onsubmit = (e) => { e.preventDefault(); sendToDiscord('report-admin-form', 'Жалоба на админа'); };
-        document.getElementById('appeal-form').onsubmit = (e) => { e.preventDefault(); sendToDiscord('appeal-form', 'Апелляция'); };
     </script>
 </body>
 </html>
