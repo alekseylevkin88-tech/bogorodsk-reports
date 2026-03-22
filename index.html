@@ -65,59 +65,91 @@
     </div>
 
     <script>
-        // ДАННЫЕ ИЗ ТВОИХ СКРИНШОТОВ
-        const S_URL = 'https://eyrtcaksbklvvgzdqzby.supabase.co';
-        const S_KEY = 'sb_publishable_vs74AwiHNiTi65GJEAAHyw_SCvJGIbQ';
-        const D_WEBHOOK = 'https://discord.com/api/webhooks/1485275103481565196/Qpymf82OnmWFPUhAN8CnvG3ZPduKe3cn3fgJQi5ayP2yjnxUu0xvs-z1LMrnqEzW4x7X';
-        const R_URI = 'https://alekseylevkin88-tech.github.io/bogorodsk-reports/';
+    // Твои проверенные данные
+    const CONFIG = {
+        SB_URL: 'https://eyrtcaksbklvvgzdqzby.supabase.co',
+        SB_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV5cnRjYWtzYmtsdnZnemRxemJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxODYxODIsImV4cCI6MjA4OTc2MjE4Mn0.9upxknDuM5X3GVOsoOqBy8cHX2qHkFMYg2fUDsVNui8',
+        WEBHOOK: 'https://discord.com/api/webhooks/1485275103481565196/Qpymf82OnmWFPUhAN8CnvG3ZPduKe3cn3fgJQi5ayP2yjnxUu0xvs-z1LMrnqEzW4x7X',
+        REDIRECT: 'https://alekseylevkin88-tech.github.io/bogorodsk-reports/'
+    };
 
-        // Используем уникальное имя 'sb', чтобы не было ошибки "already declared"
-        const sb = supabase.createClient(S_URL, S_KEY);
+    // Инициализация (используем уникальное имя portal, чтобы не было конфликтов)
+    const portal = window.supabase.createClient(CONFIG.SB_URL, CONFIG.SB_KEY);
 
-        async function login() {
-            await sb.auth.signInWithOAuth({ provider: 'discord', options: { redirectTo: R_URI } });
+    // 1. Авторизация
+    async function discordAuth() {
+        const { error } = await portal.auth.signInWithOAuth({
+            provider: 'discord',
+            options: { redirectTo: CONFIG.REDIRECT }
+        });
+        if (error) alert("Ошибка входа: " + error.message);
+    }
+
+    // 2. Проверка сессии при загрузке
+    async function checkUser() {
+        const { data: { user } } = await portal.auth.getUser();
+        if (user) {
+            document.getElementById('auth-section').style.display = 'none';
+            document.getElementById('main-section').style.display = 'block';
+            const status = document.getElementById('status');
+            status.style.display = 'block';
+            status.innerHTML = `Вы вошли как: <b>${user.user_metadata.full_name || user.email}</b>`;
         }
+    }
+    window.onload = checkUser;
 
-        async function check() {
-            const { data: { user } } = await sb.auth.getUser();
-            if (user) {
-                document.getElementById('auth-section').style.display = 'none';
-                document.getElementById('main-section').style.display = 'block';
-                document.getElementById('user-info').innerText = `Вы вошли как: ${user.user_metadata.full_name}`;
+    // 3. Переключение вкладок
+    function switchTab(id) {
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        event.target.classList.add('active');
+    }
+
+    // 4. Отправка отчета
+    async function sendReport(formId, title) {
+        const form = document.getElementById(formId);
+        const { data: { user } } = await portal.auth.getUser();
+        
+        // Собираем данные по ID полей, как в твоем HTML
+        const fields = [];
+        form.querySelectorAll('input, textarea').forEach(el => {
+            if (el.id && el.value && el.type !== 'file') {
+                const label = el.previousElementSibling ? el.previousElementSibling.innerText : el.id;
+                fields.push({ name: label, value: el.value, inline: true });
             }
+        });
+
+        const body = {
+            embeds: [{
+                title: `📋 ${title}`,
+                color: 5185791,
+                fields: [
+                    { name: 'Отправитель', value: `<@${user.user_metadata.provider_id}>`, inline: false },
+                    ...fields
+                ],
+                timestamp: new Date().toISOString()
+            }]
+        };
+
+        const res = await fetch(CONFIG.WEBHOOK, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+
+        if (res.ok) {
+            alert('Успешно отправлено!');
+            form.reset();
+        } else {
+            alert('Ошибка при отправке в Discord');
         }
+    }
 
-        function tab(e, id) {
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
-            e.target.classList.add('active');
-        }
-
-        async function send(e, type) {
-            e.preventDefault();
-            const { data: { user } } = await sb.auth.getUser();
-            const formData = new FormData(e.target);
-            const fields = [];
-            for (let [k, v] of formData.entries()) { fields.push({ name: k, value: v, inline: true }); }
-
-            const res = await fetch(D_WEBHOOK, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    embeds: [{
-                        title: type,
-                        color: 5185791,
-                        fields: [{ name: 'Отправитель', value: `<@${user.user_metadata.provider_id}>` }, ...fields],
-                        timestamp: new Date().toISOString()
-                    }]
-                })
-            });
-
-            if (res.ok) { alert('Отправлено!'); e.target.reset(); }
-        }
-
-        window.onload = check;
-    </script>
+    // Привязка обработчиков
+    document.getElementById('report-player-form').onsubmit = (e) => { e.preventDefault(); sendReport('report-player-form', 'Жалоба на игрока'); };
+    document.getElementById('report-admin-form').onsubmit = (e) => { e.preventDefault(); sendReport('report-admin-form', 'Жалоба на админа'); };
+    document.getElementById('appeal-form').onsubmit = (e) => { e.preventDefault(); sendReport('appeal-form', 'Апелляция'); };
+</script>
 </body>
 </html>
