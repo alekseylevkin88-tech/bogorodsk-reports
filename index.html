@@ -68,82 +68,93 @@
         </div>
     </div>
 
-    <script>
-        (function() {
-            // Уникальные имена переменных, чтобы избежать конфликтов
-            const BRP_S_URL = 'https://eyrtcaksbklvvgzdqzby.supabase.co';
-            const BRP_S_KEY = 'sb_publishable_vs74AwiHNiTi65GJEAAHyw_SCvJGIbQ';
-            const BRP_W_URL = 'https://discord.com/api/webhooks/1485275103481565196/Qpymf82OnmWFPUhAN8CnvG3ZPduKe3cn3fgJQi5ayP2yjnxUu0xvs-z1LMrnqEzW4x7X';
-            const BRP_R_URL = 'https://alekseylevkin88-tech.github.io/bogorodsk-reports/';
+<script>
+        // Твои данные из прошлых сообщений
+        const S_URL = 'https://eyrtcaksbklvvgzdqzby.supabase.co';
+        const S_KEY = 'sb_publishable_vs74AwiHNiTi65GJEAAHyw_SCvJGIbQ';
+        const D_WEBHOOK = 'https://discord.com/api/webhooks/1485275103481565196/Qpymf82OnmWFPUhAN8CnvG3ZPduKe3cn3fgJQi5ayP2yjnxUu0xvs-z1LMrnqEzW4x7X';
+        const R_URI = 'https://alekseylevkin88-tech.github.io/bogorodsk-reports/';
 
-            const brp_client = window.supabase.createClient(BRP_S_URL, BRP_S_KEY);
+        // Создаем клиента под именем 'sbClient', чтобы избежать конфликтов
+        const sbClient = supabase.createClient(S_URL, S_KEY);
 
-            window.brp_login = async function(e) {
-                e.preventDefault();
-                const { error } = await brp_client.auth.signInWithOAuth({
-                    provider: 'discord',
-                    options: { redirectTo: BRP_R_URL }
-                });
-                if (error) alert('Ошибка входа: ' + error.message);
-            };
+        // Функция входа (теперь через Supabase, а не прямую ссылку)
+        async function discordAuth() {
+            const { error } = await sbClient.auth.signInWithOAuth({
+                provider: 'discord',
+                options: { redirectTo: R_URI }
+            });
+            if (error) alert("Ошибка: " + error.message);
+        }
 
-            window.brp_tab = function(e, id) {
-                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-                document.getElementById(id).classList.add('active');
-                e.currentTarget.classList.add('active');
-            };
-
-            window.brp_submit = async function(e, type) {
-                e.preventDefault();
-                const form = e.target;
-                const data = new FormData(form);
-                const { data: { user } } = await brp_client.auth.getUser();
-
-                const fields = [];
-                for (let [k, v] of data.entries()) {
-                    fields.push({ name: k, value: v || '—', inline: true });
-                }
-
-                const body = {
-                    embeds: [{
-                        title: type,
-                        color: 5185791,
-                        fields: [
-                            { name: 'Отправитель', value: `<@${user.user_metadata.provider_id}>`, inline: false },
-                            ...fields
-                        ],
-                        timestamp: new Date().toISOString()
-                    }]
-                };
-
-                const res = await fetch(BRP_W_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
-                });
-
-                if (res.ok) {
-                    const s = document.getElementById('msg-status');
-                    s.textContent = 'Успешно отправлено!';
-                    s.style.color = '#7ed957';
-                    s.style.display = 'block';
-                    form.reset();
-                    setTimeout(() => s.style.display = 'none', 5000);
-                }
-            };
-
-            async function check() {
-                const { data: { user } } = await brp_client.auth.getUser();
-                if (user) {
-                    document.getElementById('auth-section').style.display = 'none';
-                    document.getElementById('main-section').style.display = 'block';
-                    document.getElementById('user-display').textContent = `Аккаунт: ${user.user_metadata.full_name || user.email}`;
-                }
+        // Проверка: вошел ли пользователь?
+        async function checkUser() {
+            const { data: { user } } = await sbClient.auth.getUser();
+            if (user) {
+                document.getElementById('auth-section').style.display = 'none';
+                document.getElementById('main-section').style.display = 'block';
+                // Показываем ник игрока
+                const status = document.getElementById('status');
+                status.innerHTML = `Вы вошли как: <b>${user.user_metadata.full_name || user.email}</b>`;
+                status.style.display = 'block';
+                status.style.background = 'rgba(78, 168, 255, 0.1)';
             }
+        }
 
-            window.addEventListener('load', check);
-        })();
+        window.onload = checkUser;
+
+        // Переключение вкладок
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // Отправка в Discord
+        async function sendReport(formId, typeName) {
+            const form = document.getElementById(formId);
+            const formData = new FormData(form);
+            const { data: { user } } = await sbClient.auth.getUser();
+
+            const fields = [];
+            // Собираем все заполненные поля
+            form.querySelectorAll('input, textarea').forEach(el => {
+                if(el.previousElementSibling && el.value) {
+                    fields.push({ name: el.previousElementSibling.innerText, value: el.value, inline: true });
+                }
+            });
+
+            const payload = {
+                embeds: [{
+                    title: `Новая заявка: ${typeName}`,
+                    color: 5185791,
+                    fields: [
+                        { name: 'Отправитель', value: `<@${user.user_metadata.provider_id}> (${user.user_metadata.full_name})`, inline: false },
+                        ...fields
+                    ],
+                    timestamp: new Date().toISOString()
+                }]
+            };
+
+            const res = await fetch(D_WEBHOOK, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                alert('Успешно отправлено!');
+                form.reset();
+            } else {
+                alert('Ошибка при отправке в Discord');
+            }
+        }
+
+        // Привязываем кнопки "Отправить"
+        document.getElementById('report-player-form').onsubmit = (e) => { e.preventDefault(); sendReport('report-player-form', 'Жалоба на игрока'); };
+        document.getElementById('report-admin-form').onsubmit = (e) => { e.preventDefault(); sendReport('report-admin-form', 'Жалоба на админа'); };
+        document.getElementById('appeal-form').onsubmit = (e) => { e.preventDefault(); sendReport('appeal-form', 'Апелляция'); };
     </script>
 </body>
 </html>
