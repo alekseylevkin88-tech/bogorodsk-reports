@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Жалобы Bogorodsk RP</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root{--bg:#020617;--accent:#4ea8ff;--text:#f5f7ff;--glass:'rgba(4,10,24,0.82)';--radius:18px}
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{background:var(--bg);color:var(--text);font-family:system-ui;padding:20px;display:flex;justify-content:center}
+        .glass-card{background:var(--glass);border-radius:var(--radius);padding:24px;max-width:600px;width:100%;backdrop-filter:blur(20px);border:1px solid rgba(78,168,255,0.35);box-shadow:0 24px 55px rgba(1,4,12,0.9)}
+        .form-group{margin-bottom:16px}
+        label{display:block;margin-bottom:8px;font-weight:600}
+        input,textarea,select{padding:12px;border:1px solid rgba(78,168,255,0.4);background:rgba(9,16,35,0.8);color:var(--text);border-radius:8px;width:100%;font-size:14px}
+        button{padding:12px 24px;background:var(--accent);color:#000;border:none;border-radius:8px;cursor:pointer;font-weight:600;transition:0.3s}
+        button:hover{background:#3b82f6;transform:translateY(-2px)}
+        button:disabled{background:#666;cursor:not-allowed}
+        .tab-btn{display:inline-block;padding:8px 16px;margin:0 4px;background:rgba(78,168,255,0.2);border:1px solid rgba(78,168,255,0.4);cursor:pointer;border-radius:20px}
+        .tab-btn.active{background:var(--accent);color:#000}
+        .tab-content{display:none}
+        .tab-content.active{display:block}
+        #login-btn{background:var(--accent);padding:12px 24px;display:inline-block;text-decoration:none;color:#000;border-radius:8px}
+    </style>
+</head>
+<body>
+    <div class="glass-card">
+        <h1 style="margin-bottom:24px;text-align:center">Bogorodsk RP - Система жалоб</h1>
+        
+        <div id="auth-section">
+            <p style="text-align:center;margin-bottom:20px">Авторизуйтесь через Discord</p>
+            <a id="login-btn" href="#" onclick="discordAuth()">🔗 Войти через Discord</a>
+        </div>
+
+        <div id="main-section" style="display:none">
+            <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+                <button class="tab-btn active" onclick="switchTab('report-player')">Жалоба на игрока</button>
+                <button class="tab-btn" onclick="switchTab('report-admin')">Жалоба на админа</button>
+                <button class="tab-btn" onclick="switchTab('appeal')">Апелляция</button>
+            </div>
+
+            <!-- Жалоба на игрока -->
+            <div id="report-player" class="tab-content active">
+                <form id="report-player-form">
+                    <div class="form-group">
+                        <label>Ник нарушителя:</label>
+                        <input type="text" id="player-nick" required>
+                    </div>
+                    <div class="form-group">
+                        <label>ID игрока (если известен):</label>
+                        <input type="text" id="player-id">
+                    </div>
+                    <div class="form-group">
+                        <label>Описание нарушения:</label>
+                        <textarea id="player-desc" rows="5" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Доказательства (скриншоты):</label>
+                        <input type="file" id="player-proof" multiple accept="image/*">
+                    </div>
+                    <button type="submit">Отправить жалобу</button>
+                </form>
+            </div>
+
+            <!-- Жалоба на админа -->
+            <div id="report-admin" class="tab-content">
+                <form id="report-admin-form">
+                    <div class="form-group">
+                        <label>Ник администратора:</label>
+                        <input type="text" id="admin-nick" required>
+                    </div>
+                    <div class="form-group">
+                        <label>ID администратора:</label>
+                        <input type="text" id="admin-id">
+                    </div>
+                    <div class="form-group">
+                        <label>Описание проблемы:</label>
+                        <textarea id="admin-desc" rows="5" required></textarea>
+                    </div>
+                    <button type="submit">Отправить жалобу</button>
+                </form>
+            </div>
+
+            <!-- Апелляция -->
+            <div id="appeal" class="tab-content">
+                <form id="appeal-form">
+                    <div class="form-group">
+                        <label>Ваш ID наказания:</label>
+                        <input type="text" id="punish-id" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Объяснение:</label>
+                        <textarea id="appeal-desc" rows="5" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Доказательства:</label>
+                        <input type="file" id="appeal-proof" multiple accept="image/*">
+                    </div>
+                    <button type="submit">Отправить апелляцию</button>
+                </form>
+            </div>
+
+            <div id="status" style="margin-top:20px;padding:12px;border-radius:8px;display:none"></div>
+        </div>
+    </div>
+
+    <script>
+        // Замените на ваши данные Supabase
+        const SUPABASE_URL = 'https://YOUR_PROJECT.supabase.co';
+        const SUPABASE_ANON_KEY = 'your-anon-key';
+        const DISCORD_WEBHOOK = 'YOUR_DISCORD_WEBHOOK_URL';
+        const DISCORD_CLIENT_ID = 'your-discord-client-id';
+        const DISCORD_REDIRECT_URI = 'https://yourdomain.com/callback';
+
+        const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // Discord OAuth URL
+        function discordAuth() {
+            const params = new URLSearchParams({
+                client_id: DISCORD_CLIENT_ID,
+                redirect_uri: DISCORD_REDIRECT_URI,
+                response_type: 'code',
+                scope: 'identify email'
+            });
+            window.location.href = `https://discord.com/api/oauth2/authorize?${params}`;
+        }
+
+        // Обработка callback
+        window.onload = async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            
+            if (code) {
+                try {
+                    const { data, error } = await supabase.auth.signInWithOAuth({
+                        provider: 'discord',
+                        options: {
+                            redirectTo: window.location.origin
+                        }
+                    });
+                    
+                    if (!error) {
+                        document.getElementById('auth-section').style.display = 'none';
+                        document.getElementById('main-section').style.display = 'block';
+                    }
+                } catch(e) {
+                    showStatus('Ошибка авторизации', 'error');
+                }
+            }
+        };
+
+        // Переключение табов
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tab).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // Отправка формы
+        async function sendReport(formId, type) {
+            const form = document.getElementById(formId);
+            const formData = new FormData(form);
+            
+            const report = {
+                type: type,
+                user: supabase.auth.getUser(),
+                data: Object.fromEntries(formData),
+                timestamp: new Date().toISOString()
+            };
+
+            // Отправка в Discord Webhook
+            try {
+                const response = await fetch(DISCORD_WEBHOOK, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        embeds: [{
+                            title: `📋 ${type.toUpperCase()}`,
+                            color: 3447003,
+                            fields: [
+                                { name: 'Пользователь', value: report.user.user.email || 'N/A', inline: true },
+                                { name: type === 'appeal' ? 'ID наказания' : 'Ник цели', value: formData.get(type === 'appeal' ? 'punish-id' : 'nick'), inline: true },
+                                { name: 'Описание', value: formData.get('desc') }
+                            ],
+                            timestamp: new Date().toISOString()
+                        }]
+                    })
+                });
+
+                if (response.ok) {
+                    showStatus('Жалоба отправлена!', 'success');
+                    form.reset();
+                }
+            } catch(e) {
+                showStatus('Ошибка отправки', 'error');
+            }
+        }
+
+        // Статус сообщения
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.style.background = type === 'success' ? '#7ed957' : '#ff5c7a';
+            status.style.display = 'block';
+            setTimeout(() => status.style.display = 'none', 5000);
+        }
+
+        // Обработчики форм
+        document.getElementById('report-player-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            sendReport('report-player-form', 'report-player');
+        });
+        document.getElementById('report-admin-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            sendReport('report-admin-form', 'report-admin');
+        });
+        document.getElementById('appeal-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            sendReport('appeal-form', 'appeal');
+        });
+    </script>
+</body>
+</html>
